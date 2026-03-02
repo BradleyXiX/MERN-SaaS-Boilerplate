@@ -13,8 +13,7 @@ function Login() {
     try {
       const res = await axios.post('/api/auth/login', { email, password });
       localStorage.setItem('token', res.data.token);
-      // Redirect to dashboard
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       const errMsg = err.response?.data?.error || 'Login failed';
       setMessage(errMsg);

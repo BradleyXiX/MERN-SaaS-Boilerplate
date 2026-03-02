@@ -110,3 +110,18 @@ exports.loginUser = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// get current user (protected)
+exports.getCurrentUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password -resetPasswordToken -resetPasswordExpires -verificationToken');
+    res.status(200).json({ user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// logout (just response, token cleared on client)
+exports.logout = (req, res) => {
+  res.status(200).json({ message: 'Logged out successfully' });
+};
