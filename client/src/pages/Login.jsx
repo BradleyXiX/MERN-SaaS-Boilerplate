@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  TextField,
+  Button,
+  Alert,
+  Container,
+  Typography,
+  Box,
+  Paper
+} from '@mui/material';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -42,32 +51,76 @@ function Login() {
   };
 
   return (
-    <div className="p-4">
-      <h2>Login</h2>
-      <div>
-        <input 
-          type="email" 
-          placeholder="Email"
-          value={email} 
-          onChange={e => setEmail(e.target.value)} 
-        />
-        {errors.email && <p className="text-red-600 text-sm">{errors.email}</p>}
-      </div>
-      <div>
-        <input 
-          type="password" 
-          placeholder="Password"
-          value={password} 
-          onChange={e => setPassword(e.target.value)} 
-        />
-        {errors.password && <p className="text-red-600 text-sm">{errors.password}</p>}
-      </div>
-      <button onClick={handleLogin} disabled={Object.keys(errors).length > 0}>Login</button>
-      {message && <p className="text-red-600">{message}</p>}
-      <div className="mt-2">
-        <Link to="/signup">Sign up</Link> | <Link to="/forgot-password">Forgot password?</Link>
-      </div>
-    </div>
+    <Container component="main" maxWidth="sm">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
+          <Typography component="h1" variant="h4" align="center" gutterBottom>
+            Login
+          </Typography>
+          <Box component="form" noValidate sx={{ mt: 1 }}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Email Address"
+              name="email"
+              autoComplete="email"
+              autoFocus
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              error={!!errors.email}
+              helperText={errors.email}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="Password"
+              type="password"
+              id="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              error={!!errors.password}
+              helperText={errors.password}
+            />
+            <Button
+              type="button"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
+              onClick={handleLogin}
+              disabled={Object.keys(errors).length > 0}
+            >
+              Login
+            </Button>
+            {message && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {message}
+              </Alert>
+            )}
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Link to="/signup" variant="body2">
+                Don't have an account? Sign Up
+              </Link>
+              <br />
+              <Link to="/forgot-password" variant="body2">
+                Forgot password?
+              </Link>
+            </Box>
+          </Box>
+        </Paper>
+      </Box>
+    </Container>
   );
 }
 

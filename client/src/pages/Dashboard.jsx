@@ -1,10 +1,21 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import {
+  Container,
+  Typography,
+  Box,
+  Card,
+  CardContent,
+  Button,
+  Alert,
+  CircularProgress
+} from '@mui/material';
 
 function Dashboard() {
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,6 +34,8 @@ function Dashboard() {
       } catch (err) {
         setMessage(err.response?.data?.error || 'Failed to fetch user');
         navigate('/login');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -42,20 +55,72 @@ function Dashboard() {
     }
   };
 
+  if (loading) {
+    return (
+      <Container maxWidth="md">
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '50vh'
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
+  }
+
   if (!user) {
-    return <div className="p-4"><p>Loading...</p></div>;
+    return null; // Will redirect
   }
 
   return (
-    <div className="p-4">
-      <h1>Welcome, {user.name}</h1>
-      <p>Email: {user.email}</p>
-      <p>Role: {user.role}</p>
-      {message && <p className="text-red-600">{message}</p>}
-      <button onClick={handleLogout} className="mt-4 bg-red-600 text-white px-4 py-2">
-        Logout
-      </button>
-    </div>
+    <Container maxWidth="md">
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h3" component="h1" gutterBottom align="center">
+          Welcome to Your Dashboard
+        </Typography>
+
+        <Card sx={{ mt: 4 }}>
+          <CardContent>
+            <Typography variant="h5" component="h2" gutterBottom>
+              User Information
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 1 }}>
+              <strong>Name:</strong> {user.name}
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 1 }}>
+              <strong>Email:</strong> {user.email}
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              <strong>Role:</strong> {user.role}
+            </Typography>
+            <Typography variant="body1">
+              <strong>Verified:</strong> {user.verified ? 'Yes' : 'No'}
+            </Typography>
+          </CardContent>
+        </Card>
+
+        {message && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {message}
+          </Alert>
+        )}
+
+        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+          <Button
+            variant="contained"
+            color="error"
+            size="large"
+            onClick={handleLogout}
+          >
+            Logout
+          </Button>
+        </Box>
+      </Box>
+    </Container>
   );
 }
 

@@ -1,5 +1,15 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
+import {
+  TextField,
+  Button,
+  Alert,
+  Container,
+  Typography,
+  Box,
+  Paper
+} from '@mui/material';
 
 function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -9,7 +19,7 @@ function ForgotPassword() {
   const validateForm = () => {
     const newErrors = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    
+
     if (!email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!emailRegex.test(email)) {
@@ -31,23 +41,61 @@ function ForgotPassword() {
   };
 
   return (
-    <div className="p-4">
-      <h2>Forgot Password</h2>
-      <div>
-        <input
-          placeholder="Email"
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-        />
-        {errors.email && <p className="text-red-600 text-sm">{errors.email}</p>}
-      </div>
-      <button onClick={handleSubmit} disabled={Object.keys(errors).length > 0}>Send Reset Link</button>
-      {message && <p>{message}</p>}
-      <div className="mt-2">
-        <a href="/login">Back to login</a>
-      </div>
-    </div>
+    <Container component="main" maxWidth="sm">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
+          <Typography component="h1" variant="h4" align="center" gutterBottom>
+            Forgot Password
+          </Typography>
+          <Typography variant="body2" align="center" sx={{ mb: 2 }}>
+            Enter your email address and we'll send you a link to reset your password.
+          </Typography>
+          <Box component="form" noValidate sx={{ mt: 1 }}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Email Address"
+              name="email"
+              autoComplete="email"
+              autoFocus
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              error={!!errors.email}
+              helperText={errors.email}
+            />
+            <Button
+              type="button"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
+              onClick={handleSubmit}
+              disabled={Object.keys(errors).length > 0}
+            >
+              Send Reset Link
+            </Button>
+            {message && (
+              <Alert severity={message.includes('Error') ? 'error' : 'success'} sx={{ mt: 2 }}>
+                {message}
+              </Alert>
+            )}
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Link to="/login" variant="body2">
+                Back to login
+              </Link>
+            </Box>
+          </Box>
+        </Paper>
+      </Box>
+    </Container>
   );
 }
 

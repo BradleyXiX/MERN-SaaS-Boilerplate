@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  TextField,
+  Button,
+  Alert,
+  Container,
+  Typography,
+  Box,
+  Paper
+} from '@mui/material';
 
 function Signup() {
   const [name, setName] = useState('');
@@ -55,42 +64,83 @@ function Signup() {
   };
 
   return (
-    <div className="p-4">
-      <h2>Sign Up</h2>
-      <p>
-        Already have an account? <a href="/login">Login</a>
-      </p>
-      <div>
-        <input
-          placeholder="Name"
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
-        {errors.name && <p className="text-red-600 text-sm">{errors.name}</p>}
-      </div>
-      <div>
-        <input
-          placeholder="Email"
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-        />
-        {errors.email && <p className="text-red-600 text-sm">{errors.email}</p>}
-      </div>
-      <div>
-        <input
-          placeholder="Password"
-          type="password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        />
-        {errors.password && <p className="text-red-600 text-sm">{errors.password}</p>}
-      </div>
-      <button onClick={handleSignup} disabled={Object.keys(errors).length > 0}>
-        Sign Up
-      </button>
-      {message && <p className="mt-2">{message}</p>}
-    </div>
+    <Container component="main" maxWidth="sm">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
+          <Typography component="h1" variant="h4" align="center" gutterBottom>
+            Sign Up
+          </Typography>
+          <Typography variant="body2" align="center" sx={{ mb: 2 }}>
+            Already have an account? <Link href="/login">Login</Link>
+          </Typography>
+          <Box component="form" noValidate sx={{ mt: 1 }}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="name"
+              label="Name"
+              name="name"
+              autoComplete="name"
+              autoFocus
+              value={name}
+              onChange={e => setName(e.target.value)}
+              error={!!errors.name}
+              helperText={errors.name}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Email Address"
+              name="email"
+              autoComplete="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              error={!!errors.email}
+              helperText={errors.email}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="Password"
+              type="password"
+              id="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              error={!!errors.password}
+              helperText={errors.password}
+            />
+            <Button
+              type="button"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
+              onClick={handleSignup}
+              disabled={Object.keys(errors).length > 0}
+            >
+              Sign Up
+            </Button>
+            {message && (
+              <Alert severity={message.includes('failed') ? 'error' : 'success'} sx={{ mt: 2 }}>
+                {message}
+              </Alert>
+            )}
+          </Box>
+        </Paper>
+      </Box>
+    </Container>
   );
 }
 

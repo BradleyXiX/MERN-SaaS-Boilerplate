@@ -1,6 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import {
+  TextField,
+  Button,
+  Alert,
+  Container,
+  Typography,
+  Box,
+  Paper
+} from '@mui/material';
 
 function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -39,23 +48,62 @@ function ResetPassword() {
   };
 
   return (
-    <div className="p-4">
-      <h2>Reset Password</h2>
-      <div>
-        <input
-          placeholder="New password"
-          type="password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        />
-        {errors.password && <p className="text-red-600 text-sm">{errors.password}</p>}
-      </div>
-      <button onClick={handleReset} disabled={Object.keys(errors).length > 0}>Change Password</button>
-      {message && <p>{message}</p>}
-      <div className="mt-2">
-        <a href="/login">Back to login</a>
-      </div>
-    </div>
+    <Container component="main" maxWidth="sm">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
+          <Typography component="h1" variant="h4" align="center" gutterBottom>
+            Reset Password
+          </Typography>
+          <Typography variant="body2" align="center" sx={{ mb: 2 }}>
+            Enter your new password below.
+          </Typography>
+          <Box component="form" noValidate sx={{ mt: 1 }}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="New Password"
+              type="password"
+              id="password"
+              autoComplete="new-password"
+              autoFocus
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              error={!!errors.password}
+              helperText={errors.password}
+            />
+            <Button
+              type="button"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
+              onClick={handleReset}
+              disabled={Object.keys(errors).length > 0}
+            >
+              Change Password
+            </Button>
+            {message && (
+              <Alert severity={message.includes('Error') ? 'error' : 'success'} sx={{ mt: 2 }}>
+                {message}
+              </Alert>
+            )}
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Link to="/login" variant="body2">
+                Back to login
+              </Link>
+            </Box>
+          </Box>
+        </Paper>
+      </Box>
+    </Container>
   );
 }
 
