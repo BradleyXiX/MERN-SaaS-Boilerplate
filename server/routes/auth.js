@@ -17,14 +17,19 @@ const {
   validateForgotPassword,
   validateResetPassword
 } = require('../middleware/validation');
+const {
+  authLimiter,
+  loginLimiter,
+  passwordResetLimiter
+} = require('../middleware/rateLimiter');
 
-router.post('/register', validateRegister, handleValidationErrors, registerUser);
-router.post('/login', validateLogin, handleValidationErrors, loginUser);
+router.post('/register', authLimiter, validateRegister, handleValidationErrors, registerUser);
+router.post('/login', loginLimiter, validateLogin, handleValidationErrors, loginUser);
 
 // email verification & password tooling
 router.get('/verify-email', verifyEmail);
-router.post('/forgot-password', validateForgotPassword, handleValidationErrors, forgotPassword);
-router.post('/reset-password', validateResetPassword, handleValidationErrors, resetPassword);
+router.post('/forgot-password', passwordResetLimiter, validateForgotPassword, handleValidationErrors, forgotPassword);
+router.post('/reset-password', passwordResetLimiter, validateResetPassword, handleValidationErrors, resetPassword);
 
 // protected routes
 router.get('/me', protect, getCurrentUser);
