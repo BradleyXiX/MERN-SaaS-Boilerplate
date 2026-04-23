@@ -5,126 +5,181 @@ const User = require('../models/User');
 const mailer = require('../utils/mailer');
 const verificationEmailTemplate = require('../utils/templates/verificationEmail');
 const resetPasswordEmailTemplate = require('../utils/templates/resetPasswordEmail');
-exports.registerUser = async (req, res) => {
+const { AppError, catchAsyncErrors } = require('../middleware/errorHandler');
+
+// Register User
+exports.registerUser = catchAsyncErrors(async (req, res, next) => {
   const { name, email, password } = req.body;
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const verificationToken = crypto.randomBytes(20).toString('hex');
 
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      verificationToken
-    });
-
-    // send verification email
-    const verifyUrl = `${req.protocol}://${req.get('host')}/api/auth/verify-email?token=${verificationToken}`;
-    await mailer.sendMail({
-      to: email,
-      subject: 'Verify Your Email Address',
-      text: `Click this link to verify your account: ${verifyUrl}`,
-      html: verificationEmailTemplate(verifyUrl)
-    });
-
-    res.status(201).json({ message: 'User registered successfully. Please check your email to verify your account.' });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return next(new AppError('User already exists with this email', 400));
   }
-};
-// email verification handler
-exports.verifyEmail = async (req, res) => {
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const verificationToken = crypto.randomBytes(20).toString('hex');
+
+  const user = await User.create({
+    name,
+    email,
+    password: hashedPassword,
+    verificationToken
+  });
+
+  // send verification email
+  const verifyUrl = `${req.protocol}://${req.get('host')}/api/auth/verify-email?token=${verificationToken}`;
+  await mailer.sendMail({
+    to: email,
+    subject: 'Verify Your Email Address',
+    text: `Click this link to verify your account: ${verifyUrl}`,
+    html: verificationEmailTemplate(verifyUrl)
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'User registered successfully. Please check your email to verify your account.'
+  });
+});
+
+// Email verification handler
+exports.verifyEmail = catchAsyncErrors(async (req, res, next) => {
   const { token } = req.query;
-  try {
-    const user = await User.findOne({ verificationToken: token });
-    if (!user) return res.status(400).json({ error: 'Invalid or expired token' });
 
-    user.verified = true;
-    user.verificationToken = undefined;
-    await user.save();
-
-    res.status(200).json({ message: 'Email verified successfully' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (!token) {
+    return next(new AppError('Verification token is required', 400));
   }
-};
 
-// initiate password reset
-exports.forgotPassword = async (req, res) => {
+  const user = await User.findOne({ verificationToken: token });
+  if (!user) {
+    return next(new AppError('Invalid or expired verification token', 400));
+  }
+
+  user.verified = true;
+  user.verificationToken = undefined;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Email verified successfully'
+  });
+});
+
+// Initiate password reset
+exports.forgotPassword = catchAsyncErrors(async (req, res, next) => {
   const { email } = req.body;
-  try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const token = crypto.randomBytes(20).toString('hex');
-    user.resetPasswordToken = token;
-    user.resetPasswordExpires = Date.now() + 3600000; // 1h
-    await user.save();
-
-    const resetUrl = `${req.protocol}://${req.get('host')}/reset-password?token=${token}`;
-    await mailer.sendMail({
-      to: email,
-      subject: 'Reset Your Password',
-      text: `You requested a password reset. Click here to set a new password: ${resetUrl}`,
-      html: resetPasswordEmailTemplate(resetUrl)
-    });
-
-    res.status(200).json({ message: 'Password reset email sent' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (!email) {
+    return next(new AppError('Email is required', 400));
   }
-};
 
-// complete password reset
-exports.resetPassword = async (req, res) => {
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new AppError('User not found with this email', 404));
+  }
+
+  const token = crypto.randomBytes(20).toString('hex');
+  user.resetPasswordToken = token;
+  user.resetPasswordExpires = Date.now() + 3600000; // 1h
+  await user.save();
+
+  const resetUrl = `${req.protocol}://${req.get('host')}/reset-password?token=${token}`;
+  await mailer.sendMail({
+    to: email,
+    subject: 'Reset Your Password',
+    text: `You requested a password reset. Click here to set a new password: ${resetUrl}`,
+    html: resetPasswordEmailTemplate(resetUrl)
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Password reset email sent successfully'
+  });
+});
+
+// Complete password reset
+exports.resetPassword = catchAsyncErrors(async (req, res, next) => {
   const { token, password } = req.body;
-  try {
-    const user = await User.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() }
-    });
-    if (!user) return res.status(400).json({ error: 'Invalid or expired token' });
 
-    user.password = await bcrypt.hash(password, 10);
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
-    await user.save();
-
-    res.status(200).json({ message: 'Password has been reset' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (!token || !password) {
+    return next(new AppError('Token and password are required', 400));
   }
-};
-exports.loginUser = async (req, res) => {
+
+  const user = await User.findOne({
+    resetPasswordToken: token,
+    resetPasswordExpires: { $gt: Date.now() }
+  });
+
+  if (!user) {
+    return next(new AppError('Invalid or expired reset token', 400));
+  }
+
+  user.password = await bcrypt.hash(password, 10);
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Password has been reset successfully'
+  });
+});
+
+// Login User
+exports.loginUser = catchAsyncErrors(async (req, res, next) => {
   const { email, password } = req.body;
-  try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
-
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-      expiresIn: '1d'
-    });
-
-    res.status(200).json({ token, user: { name: user.name, email: user.email, role: user.role } });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (!email || !password) {
+    return next(new AppError('Email and password are required', 400));
   }
-};
 
-// get current user (protected)
-exports.getCurrentUser = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password -resetPasswordToken -resetPasswordExpires -verificationToken');
-    res.status(200).json({ user });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new AppError('Invalid credentials', 401));
   }
-};
 
-// logout (just response, token cleared on client)
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return next(new AppError('Invalid credentials', 401));
+  }
+
+  if (!user.verified) {
+    return next(new AppError('Please verify your email before logging in', 403));
+  }
+
+  const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+    expiresIn: '1d'
+  });
+
+  res.status(200).json({
+    success: true,
+    token,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }
+  });
+});
+
+// Get current user (protected)
+exports.getCurrentUser = catchAsyncErrors(async (req, res, next) => {
+  const user = await User.findById(req.user.id).select('-password -resetPasswordToken -resetPasswordExpires -verificationToken');
+
+  if (!user) {
+    return next(new AppError('User not found', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    user
+  });
+});
+
+// Logout (just response, token cleared on client)
 exports.logout = (req, res) => {
-  res.status(200).json({ message: 'Logged out successfully' });
+  res.status(200).json({
+    success: true,
+    message: 'Logged out successfully'
+  });
 };
