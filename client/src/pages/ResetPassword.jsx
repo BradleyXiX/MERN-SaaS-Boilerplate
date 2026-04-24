@@ -8,13 +8,18 @@ import {
   Container,
   Typography,
   Box,
-  Paper
+  Paper,
+  InputAdornment,
+  IconButton
 } from '@mui/material';
+import { Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
 
 function ResetPassword() {
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState('');
   const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token');
@@ -38,72 +43,102 @@ function ResetPassword() {
 
   const handleReset = async () => {
     if (!validateForm()) return;
+    setIsLoading(true);
     try {
       const res = await axios.post('/api/auth/reset-password', { token, password });
       setMessage(res.data.message);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
       setMessage(err.response?.data?.error || 'Error resetting password');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <Container component="main" maxWidth="sm">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
-          <Typography component="h1" variant="h4" align="center" gutterBottom>
-            Reset Password
-          </Typography>
-          <Typography variant="body2" align="center" sx={{ mb: 2 }}>
-            Enter your new password below.
-          </Typography>
-          <Box component="form" noValidate sx={{ mt: 1 }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="New Password"
-              type="password"
-              id="password"
-              autoComplete="new-password"
-              autoFocus
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              error={!!errors.password}
-              helperText={errors.password}
-            />
-            <Button
-              type="button"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-              onClick={handleReset}
-              disabled={Object.keys(errors).length > 0}
-            >
-              Change Password
-            </Button>
-            {message && (
-              <Alert severity={message.includes('Error') ? 'error' : 'success'} sx={{ mt: 2 }}>
-                {message}
-              </Alert>
-            )}
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
-              <Link to="/login" variant="body2">
-                Back to login
-              </Link>
+    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
+      <Container component="main" maxWidth="sm">
+        <Paper 
+          className="glass-panel animate-fade-in" 
+          elevation={0} 
+          sx={{ padding: { xs: 4, md: 6 }, borderRadius: '24px', position: 'relative', overflow: 'hidden' }}
+        >
+          {/* Decorative background blur */}
+          <Box sx={{ position: 'absolute', top: -50, left: -50, width: 150, height: 150, background: 'rgba(79, 70, 229, 0.3)', filter: 'blur(40px)', borderRadius: '50%', zIndex: 0 }} />
+          
+          <Box sx={{ position: 'relative', zIndex: 1 }}>
+            <Box sx={{ mb: 4, textAlign: 'center' }}>
+              <Box sx={{ display: 'inline-flex', p: 2, borderRadius: '16px', background: 'rgba(79, 70, 229, 0.1)', mb: 2 }}>
+                <KeyRound size={32} color="#4F46E5" />
+              </Box>
+              <Typography component="h1" variant="h4" fontWeight="700" gutterBottom>
+                Reset Password
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                Enter your new password below.
+              </Typography>
+            </Box>
+
+            <Box component="form" noValidate sx={{ mt: 1 }}>
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                name="password"
+                label="New Password"
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                autoComplete="new-password"
+                autoFocus
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                error={!!errors.password}
+                helperText={errors.password}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Lock size={20} color={errors.password ? '#ef4444' : '#94A3B8'} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+              <Button
+                type="button"
+                fullWidth
+                variant="contained"
+                size="large"
+                sx={{ mt: 4, mb: 3, py: 1.5, fontSize: '1.1rem' }}
+                onClick={handleReset}
+                disabled={Object.keys(errors).length > 0 || isLoading}
+              >
+                {isLoading ? 'Updating...' : 'Change Password'}
+              </Button>
+              {message && (
+                <Alert severity={message.includes('Error') ? 'error' : 'success'} sx={{ mt: 2, borderRadius: '8px' }}>
+                  {message}
+                </Alert>
+              )}
+              <Box sx={{ mt: 2, textAlign: 'center' }}>
+                <Link to="/login" style={{ color: '#94A3B8', textDecoration: 'none', fontWeight: 500 }}>
+                  Back to login
+                </Link>
+              </Box>
             </Box>
           </Box>
         </Paper>
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 }
 

@@ -23,7 +23,7 @@ const resetPasswordEmailTemplate = (resetUrl) => `
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     }
     .email-header {
-      background-color: #2196F3;
+      background-color: #4F46E5;
       color: #ffffff;
       padding: 30px 40px;
       text-align: center;
@@ -48,7 +48,7 @@ const resetPasswordEmailTemplate = (resetUrl) => `
       margin: 35px 0;
     }
     .action-button {
-      background-color: #2196F3;
+      background-color: #4F46E5;
       color: #ffffff !important;
       padding: 14px 28px;
       text-decoration: none;
@@ -67,7 +67,7 @@ const resetPasswordEmailTemplate = (resetUrl) => `
     }
     .link-fallback {
       word-break: break-all;
-      color: #2196F3;
+      color: #4F46E5;
       font-size: 14px;
     }
   </style>
