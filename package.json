@@ -1,6 +1,13 @@
 {
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "install:all": "npm install && npm install --prefix server && npm install --prefix client"
+  },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.13",
     "tailwindcss": "^4.1.13"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }
