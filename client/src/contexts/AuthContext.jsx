@@ -1,5 +1,6 @@
 import { createContext, useState, useCallback, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
+import { getErrorMessage } from '../utils/errorHandler';
 
 export const AuthContext = createContext();
 
@@ -16,18 +17,23 @@ export function AuthProvider({ children }) {
     if (storedToken) {
       setToken(storedToken);
       setIsAuthenticated(true);
-      // Set default authorization header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
       // Fetch current user
       fetchCurrentUser(storedToken);
     } else {
       setLoading(false);
     }
+
+    // Listen for logout events from interceptor
+    const handleLogout = () => {
+      logout();
+    };
+    window.addEventListener('auth:logout', handleLogout);
+    return () => window.removeEventListener('auth:logout', handleLogout);
   }, []);
 
   const fetchCurrentUser = useCallback(async (authToken) => {
     try {
-      const response = await axios.get('/api/auth/me', {
+      const response = await api.get('/api/auth/me', {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       if (response.data.success) {
@@ -46,18 +52,17 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
+      const response = await api.post('/api/auth/login', { email, password });
       if (response.data.success) {
         const { token: newToken, user: userData } = response.data.data;
         setToken(newToken);
         setUser(userData);
         setIsAuthenticated(true);
         localStorage.setItem('token', newToken);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
         return { success: true };
       }
     } catch (err) {
-      const message = err.response?.data?.message || 'Login failed';
+      const message = getErrorMessage(err);
       setError(message);
       return { success: false, error: message };
     } finally {
@@ -69,12 +74,12 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post('/api/auth/register', { email, password, name });
+      const response = await api.post('/api/auth/register', { email, password, name });
       if (response.data.success) {
         return { success: true, message: response.data.message };
       }
     } catch (err) {
-      const message = err.response?.data?.message || 'Signup failed';
+      const message = getErrorMessage(err);
       setError(message);
       return { success: false, error: message };
     } finally {
@@ -87,19 +92,18 @@ export function AuthProvider({ children }) {
     setToken(null);
     setIsAuthenticated(false);
     localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
   }, []);
 
   const forgotPassword = useCallback(async (email) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post('/api/auth/forgot-password', { email });
+      const response = await api.post('/api/auth/forgot-password', { email });
       if (response.data.success) {
         return { success: true, message: response.data.message };
       }
     } catch (err) {
-      const message = err.response?.data?.message || 'Request failed';
+      const message = getErrorMessage(err);
       setError(message);
       return { success: false, error: message };
     } finally {
@@ -111,12 +115,12 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post('/api/auth/reset-password', { token, password });
+      const response = await api.post('/api/auth/reset-password', { token, password });
       if (response.data.success) {
         return { success: true, message: response.data.message };
       }
     } catch (err) {
-      const message = err.response?.data?.message || 'Reset failed';
+      const message = getErrorMessage(err);
       setError(message);
       return { success: false, error: message };
     } finally {
@@ -128,12 +132,12 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`/api/auth/verify-email?token=${token}`);
+      const response = await api.get(`/api/auth/verify-email?token=${token}`);
       if (response.data.success) {
         return { success: true, message: response.data.message };
       }
     } catch (err) {
-      const message = err.response?.data?.message || 'Verification failed';
+      const message = getErrorMessage(err);
       setError(message);
       return { success: false, error: message };
     } finally {
