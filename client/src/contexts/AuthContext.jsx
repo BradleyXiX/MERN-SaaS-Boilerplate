@@ -46,7 +46,7 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [logout]);
 
   const login = useCallback(async (email, password) => {
     setLoading(true);
@@ -54,11 +54,12 @@ export function AuthProvider({ children }) {
     try {
       const response = await api.post('/api/auth/login', { email, password });
       if (response.data.success) {
-        const { token: newToken, user: userData } = response.data.data;
-        setToken(newToken);
+        const { accessToken, refreshToken, user: userData } = response.data.data;
+        setToken(accessToken);
         setUser(userData);
         setIsAuthenticated(true);
-        localStorage.setItem('token', newToken);
+        localStorage.setItem('token', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
         return { success: true };
       }
     } catch (err) {
@@ -92,6 +93,7 @@ export function AuthProvider({ children }) {
     setToken(null);
     setIsAuthenticated(false);
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
   }, []);
 
   const forgotPassword = useCallback(async (email) => {

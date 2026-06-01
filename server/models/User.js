@@ -12,7 +12,16 @@ const userSchema = new mongoose.Schema({
 
   // password reset
   resetPasswordToken: String,
-  resetPasswordExpires: Date
-});
+  resetPasswordExpires: Date,
+
+  // refresh tokens for session management
+  refreshTokens: [
+    {
+      token: String,
+      expiresAt: Date,
+      createdAt: { type: Date, default: Date.now }
+    }
+  ]
+}, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

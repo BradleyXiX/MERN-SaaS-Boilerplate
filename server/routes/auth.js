@@ -7,7 +7,8 @@ const {
   forgotPassword,
   resetPassword,
   getCurrentUser,
-  logout
+  logout,
+  refreshAccessToken
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const {
@@ -25,6 +26,9 @@ const {
 
 router.post('/register', authLimiter, validateRegister, handleValidationErrors, registerUser);
 router.post('/login', loginLimiter, validateLogin, handleValidationErrors, loginUser);
+
+// Refresh token endpoint (no rate limit, no auth required)
+router.post('/refresh-token', refreshAccessToken);
 
 // email verification & password tooling
 router.get('/verify-email', verifyEmail);

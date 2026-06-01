@@ -65,16 +65,43 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      // In a real app, you'd call a refresh token endpoint here
-      // For now, we'll just clear auth and redirect
-      localStorage.removeItem('token');
-      processQueue(error, null);
-      isRefreshing = false;
+      // Try to refresh token
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) {
+        return api
+          .post('/api/auth/refresh-token', { refreshToken })
+          .then((response) => {
+            const { accessToken } = response.data.data;
+            localStorage.setItem('token', accessToken);
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            processQueue(null, accessToken);
+            return api(originalRequest);
+          })
+          .catch((err) => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+            processQueue(err, null);
+            isRefreshing = false;
 
-      // Trigger logout by dispatching custom event
-      window.dispatchEvent(new Event('auth:logout'));
+            // Trigger logout by dispatching custom event
+            window.dispatchEvent(new Event('auth:logout'));
 
-      return Promise.reject(error);
+            return Promise.reject(err);
+          })
+          .finally(() => {
+            isRefreshing = false;
+          });
+      } else {
+        // No refresh token, clear auth and logout
+        localStorage.removeItem('token');
+        processQueue(error, null);
+        isRefreshing = false;
+
+        // Trigger logout by dispatching custom event
+        window.dispatchEvent(new Event('auth:logout'));
+
+        return Promise.reject(error);
+      }
     }
 
     // Handle other errors

@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const mailer = require('../utils/mailer');
+const { generateTokenPair, verifyRefreshToken, hashToken, getTokenExpiry } = require('../utils/tokenService');
 const verificationEmailTemplate = require('../utils/templates/verificationEmail');
 const resetPasswordEmailTemplate = require('../utils/templates/resetPasswordEmail');
 const { AppError, catchAsyncErrors } = require('../middleware/errorHandler');
@@ -146,25 +147,37 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
     return next(new AppError('Please verify your email before logging in', 403));
   }
 
-  const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-    expiresIn: '1d'
+  // Generate token pair
+  const { accessToken, refreshToken, refreshTokenExpiry } = generateTokenPair(user._id);
+
+  // Store refresh token in database (hashed for security)
+  user.refreshTokens.push({
+    token: hashToken(refreshToken),
+    expiresAt: refreshTokenExpiry
   });
+
+  // Clean up expired refresh tokens
+  user.refreshTokens = user.refreshTokens.filter(rt => new Date(rt.expiresAt) > new Date());
+  await user.save();
 
   res.status(200).json({
     success: true,
-    token,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role
+    data: {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
     }
   });
 });
 
 // Get current user (protected)
 exports.getCurrentUser = catchAsyncErrors(async (req, res, next) => {
-  const user = await User.findById(req.user.id).select('-password -resetPasswordToken -resetPasswordExpires -verificationToken');
+  const user = await User.findById(req.user.id).select('-password -resetPasswordToken -resetPasswordExpires -verificationToken -refreshTokens');
 
   if (!user) {
     return next(new AppError('User not found', 404));
@@ -172,14 +185,76 @@ exports.getCurrentUser = catchAsyncErrors(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    user
+    data: user
   });
 });
 
-// Logout (just response, token cleared on client)
-exports.logout = (req, res) => {
+// Refresh access token
+exports.refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return next(new AppError('Refresh token is required', 400));
+  }
+
+  // Verify refresh token
+  const decoded = verifyRefreshToken(refreshToken);
+  if (!decoded) {
+    return next(new AppError('Invalid or expired refresh token', 401));
+  }
+
+  // Check if refresh token exists in database
+  const user = await User.findById(decoded.id);
+  if (!user) {
+    return next(new AppError('User not found', 404));
+  }
+
+  const tokenHash = hashToken(refreshToken);
+  const tokenExists = user.refreshTokens.some(
+    rt => rt.token === tokenHash && new Date(rt.expiresAt) > new Date()
+  );
+
+  if (!tokenExists) {
+    return next(new AppError('Refresh token not found or expired', 401));
+  }
+
+  // Generate new access token
+  const { accessToken: newAccessToken } = generateTokenPair(user._id);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      accessToken: newAccessToken
+    }
+  });
+});
+
+// Logout (clear all refresh tokens or specific device)
+exports.logout = catchAsyncErrors(async (req, res, next) => {
+  const { refreshToken, logoutAll } = req.body;
+
+  if (!req.user && !refreshToken) {
+    return res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  }
+
+  if (logoutAll && req.user) {
+    // Logout from all devices
+    await User.findByIdAndUpdate(req.user.id, {
+      $set: { refreshTokens: [] }
+    });
+  } else if (refreshToken) {
+    // Logout from specific device
+    const tokenHash = hashToken(refreshToken);
+    await User.findByIdAndUpdate(req.user?.id || (await User.findOne({ 'refreshTokens.token': tokenHash }))?._id, {
+      $pull: { refreshTokens: { token: tokenHash } }
+    });
+  }
+
   res.status(200).json({
     success: true,
     message: 'Logged out successfully'
   });
-};
+});
