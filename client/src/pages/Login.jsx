@@ -1,179 +1,114 @@
-import { useState } from 'react';
-import axios from 'axios';
+import { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-  TextField,
-  Button,
-  Alert,
-  Container,
-  Typography,
-  Box,
-  Paper,
-  InputAdornment,
-  IconButton
-} from '@mui/material';
-import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
+import { Zap, ArrowRight, Lock, Mail } from 'lucide-react';
+import { AuthContext } from '../contexts/AuthContext';
+import MagneticButton from '../components/motion/MagneticButton';
 
-function Login() {
+export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [message, setMessage] = useState('');
-  const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-
+  const [localError, setLocalError] = useState('');
+  const { login, loading } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const validateForm = () => {
-    const newErrors = {};
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLocalError('');
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!emailRegex.test(email)) {
-      newErrors.email = 'Valid email is required';
-    }
-
-    if (!password) {
-      newErrors.password = 'Password is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleLogin = async () => {
-    if (!validateForm()) return;
-    setIsLoading(true);
-    try {
-      const res = await axios.post('/api/auth/login', { email, password });
-      localStorage.setItem('token', res.data.token);
+    const res = await login(email, password);
+    if (res.success) {
       navigate('/dashboard');
-    } catch (err) {
-      const errMsg = err.response?.data?.error || 'Login failed';
-      setMessage(errMsg);
-      console.error(errMsg);
-    } finally {
-      setIsLoading(false);
+    } else {
+      setLocalError(res.error || 'Failed to authenticate');
     }
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
-      <Container component="main" maxWidth="sm">
-        <Paper 
-          className="glass-panel animate-fade-in" 
-          elevation={0} 
-          sx={{ padding: { xs: 4, md: 6 }, borderRadius: '24px', position: 'relative', overflow: 'hidden' }}
-        >
-          {/* Decorative background blur */}
-          <Box sx={{ position: 'absolute', top: -50, right: -50, width: 150, height: 150, background: 'rgba(79, 70, 229, 0.4)', filter: 'blur(40px)', borderRadius: '50%', zIndex: 0 }} />
-          
-          <Box sx={{ position: 'relative', zIndex: 1 }}>
-            <Box sx={{ mb: 4, textAlign: 'center' }}>
-              <Box sx={{ display: 'inline-flex', p: 2, borderRadius: '16px', background: 'rgba(79, 70, 229, 0.1)', mb: 2 }}>
-                <LogIn size={32} color="#4F46E5" />
-              </Box>
-              <Typography component="h1" variant="h4" fontWeight="700" gutterBottom>
-                Welcome Back
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Sign in to continue to your dashboard.
-              </Typography>
-            </Box>
+    <div className="flex min-h-screen items-center justify-center bg-[#090B10] px-6 py-12 text-slate-100 selection:bg-cyan-500/30">
+      <div className="w-full max-w-md">
+        {/* Brand Header */}
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-3 group mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+              <Zap className="h-5 w-5" />
+            </div>
+            <span className="font-display text-xl font-bold text-white">SaaS Pro</span>
+          </Link>
+          <h1 className="font-display text-2xl font-bold text-white">Access Telemetry Console</h1>
+          <p className="text-sm text-slate-400 mt-1">Authenticate your operator session credentials.</p>
+        </div>
 
-            <Box component="form" noValidate sx={{ mt: 1 }}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="email"
-                label="Email Address"
-                name="email"
-                autoComplete="email"
-                autoFocus
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                error={!!errors.email}
-                helperText={errors.email}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Mail size={20} color={errors.email ? '#ef4444' : '#94A3B8'} />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="password"
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                error={!!errors.password}
-                helperText={errors.password}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Lock size={20} color={errors.password ? '#ef4444' : '#94A3B8'} />
-                    </InputAdornment>
-                  ),
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-              
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                <Link to="/forgot-password" style={{ color: '#818CF8', textDecoration: 'none', fontSize: '0.875rem' }}>
-                  Forgot password?
+        {/* Card Container */}
+        <div className="bento-card">
+          {localError && (
+            <div className="mb-6 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3.5 text-xs text-rose-300">
+              {localError}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-xs font-mono uppercase text-slate-400 tracking-wider mb-2" htmlFor="email">
+                Operator Email
+              </label>
+              <div className="relative">
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="operator@company.com"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-slate-500 transition-colors focus:border-cyan-400 focus:bg-white/[0.05]"
+                />
+                <Mail className="absolute right-3.5 top-3.5 h-4 w-4 text-slate-500" />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-mono uppercase text-slate-400 tracking-wider" htmlFor="password">
+                  Security Passkey
+                </label>
+                <Link to="/forgot-password" className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors">
+                  Lost key?
                 </Link>
-              </Box>
+              </div>
+              <div className="relative">
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-slate-500 transition-colors focus:border-cyan-400 focus:bg-white/[0.05]"
+                />
+                <Lock className="absolute right-3.5 top-3.5 h-4 w-4 text-slate-500" />
+              </div>
+            </div>
 
-              <Button
-                type="button"
-                fullWidth
-                variant="contained"
-                size="large"
-                sx={{ mt: 4, mb: 3, py: 1.5, fontSize: '1.1rem' }}
-                onClick={handleLogin}
-                disabled={Object.keys(errors).length > 0 || isLoading}
+            <MagneticButton strength={0.2} className="w-full">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-cyan-400 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300 transition-colors disabled:opacity-50"
               >
-                {isLoading ? 'Signing In...' : 'Sign In'}
-              </Button>
-              
-              {message && (
-                <Alert severity="error" sx={{ mt: 2, borderRadius: '8px' }}>
-                  {message}
-                </Alert>
-              )}
-              
-              <Box sx={{ textAlign: 'center', mt: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Don't have an account?{' '}
-                  <Link to="/signup" style={{ color: '#4F46E5', textDecoration: 'none', fontWeight: 600 }}>
-                    Sign Up
-                  </Link>
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
-      </Container>
-    </Box>
+                {loading ? 'Validating Session...' : 'Authenticate Session'}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </MagneticButton>
+          </form>
+
+          <div className="mt-6 text-center text-xs text-slate-400">
+            Don't have an operator cluster?{' '}
+            <Link to="/signup" className="text-cyan-400 hover:text-cyan-300 font-semibold">
+              Deploy Workspace
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
