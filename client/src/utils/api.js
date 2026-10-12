@@ -1,126 +1,61 @@
 import axios from 'axios';
 
-// Create axios instance
+// Create configured axios instance with automatic cookie credential transmission
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 10000,
+  withCredentials: true, // Crucial for HttpOnly cookie session transmission
   headers: {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
   },
 });
 
-// Track if we're currently refreshing token to avoid multiple refresh calls
 let isRefreshing = false;
 let failedQueue = [];
 
-const processQueue = (error, token = null) => {
+const processQueue = (error) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
-      prom.resolve(token);
+      prom.resolve();
     }
   });
   failedQueue = [];
 };
 
-// Request interceptor
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor
+// Response interceptor for automatic HttpOnly session refresh
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
+  (response) => response,
+  async (error) => {
     const originalRequest = error.config;
 
-    // Handle 401 Unauthorized (token expired or invalid)
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Handle 401 Unauthorized by attempting session refresh via cookies
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/api/auth/login')) {
       if (isRefreshing) {
-        // Queue this request to retry after token refresh
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return api(originalRequest);
-          })
-          .catch((err) => {
-            return Promise.reject(err);
-          });
+          .then(() => api(originalRequest))
+          .catch((err) => Promise.reject(err));
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
 
-      // Try to refresh token
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (refreshToken) {
-        return api
-          .post('/api/auth/refresh-token', { refreshToken })
-          .then((response) => {
-            const { accessToken } = response.data.data;
-            localStorage.setItem('token', accessToken);
-            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-            processQueue(null, accessToken);
-            return api(originalRequest);
-          })
-          .catch((err) => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('refreshToken');
-            processQueue(err, null);
-            isRefreshing = false;
-
-            // Trigger logout by dispatching custom event
-            window.dispatchEvent(new Event('auth:logout'));
-
-            return Promise.reject(err);
-          })
-          .finally(() => {
-            isRefreshing = false;
-          });
-      } else {
-        // No refresh token, clear auth and logout
-        localStorage.removeItem('token');
-        processQueue(error, null);
+      try {
+        // Attempt cookie-based token refresh
+        await api.post('/api/auth/refresh-token', {});
+        processQueue(null);
+        return api(originalRequest);
+      } catch (refreshErr) {
+        processQueue(refreshErr);
+        window.dispatchEvent(new Event('auth:session-expired'));
+        return Promise.reject(refreshErr);
+      } finally {
         isRefreshing = false;
-
-        // Trigger logout by dispatching custom event
-        window.dispatchEvent(new Event('auth:logout'));
-
-        return Promise.reject(error);
       }
-    }
-
-    // Handle other errors
-    if (error.response) {
-      // Server responded with error status
-      const errorData = error.response.data;
-      const message = errorData?.message || 'An error occurred';
-
-      // Create enhanced error object
-      error.message = message;
-      error.statusCode = error.response.status;
-    } else if (error.request) {
-      // Request was made but no response
-      error.message = 'No response from server';
-      error.statusCode = 0;
-    } else {
-      // Error in request setup
-      error.message = error.message || 'Error occurred';
-      error.statusCode = 0;
     }
 
     return Promise.reject(error);

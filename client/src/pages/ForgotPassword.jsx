@@ -1,122 +1,98 @@
 import { useState } from 'react';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
-import {
-  TextField,
-  Button,
-  Alert,
-  Container,
-  Typography,
-  Box,
-  Paper,
-  InputAdornment
-} from '@mui/material';
-import { Mail, KeyRound } from 'lucide-react';
+import { Zap, ArrowRight, Mail } from 'lucide-react';
+import api from '../utils/api';
+import MagneticButton from '../components/motion/MagneticButton';
 
-function ForgotPassword() {
+export function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
-  const [errors, setErrors] = useState({});
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const validateForm = () => {
-    const newErrors = {};
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!emailRegex.test(email)) {
-      newErrors.email = 'Valid email is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
     setIsLoading(true);
+
     try {
-      const res = await axios.post('/api/auth/forgot-password', { email });
-      setMessage(res.data.message);
+      const res = await api.post('/api/auth/forgot-password', { email });
+      setMessage(res.data.message || 'If an account exists, a recovery link has been dispatched.');
     } catch (err) {
-      setMessage(err.response?.data?.error || 'Error');
+      setError(err.response?.data?.detail || err.response?.data?.message || 'Request failed');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
-      <Container component="main" maxWidth="sm">
-        <Paper 
-          className="glass-panel animate-fade-in" 
-          elevation={0} 
-          sx={{ padding: { xs: 4, md: 6 }, borderRadius: '24px', position: 'relative', overflow: 'hidden' }}
-        >
-          {/* Decorative background blur */}
-          <Box sx={{ position: 'absolute', top: -50, right: -50, width: 150, height: 150, background: 'rgba(245, 158, 11, 0.3)', filter: 'blur(40px)', borderRadius: '50%', zIndex: 0 }} />
-          
-          <Box sx={{ position: 'relative', zIndex: 1 }}>
-            <Box sx={{ mb: 4, textAlign: 'center' }}>
-              <Box sx={{ display: 'inline-flex', p: 2, borderRadius: '16px', background: 'rgba(245, 158, 11, 0.1)', mb: 2 }}>
-                <KeyRound size={32} color="#F59E0B" />
-              </Box>
-              <Typography component="h1" variant="h4" fontWeight="700" gutterBottom>
-                Forgot Password
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Enter your email address and we'll send you a link to reset your password.
-              </Typography>
-            </Box>
+    <div className="flex min-h-screen items-center justify-center bg-[#090B10] px-6 py-12 text-slate-100 selection:bg-cyan-500/30">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-3 group mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+              <Zap className="h-5 w-5" />
+            </div>
+            <span className="font-display text-xl font-bold text-white">SaaS Pro</span>
+          </Link>
+          <h1 className="font-display text-2xl font-bold text-white">Key Recovery</h1>
+          <p className="text-sm text-slate-400 mt-1">Request a cryptographic password reset token.</p>
+        </div>
 
-            <Box component="form" noValidate sx={{ mt: 1 }}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="email"
-                label="Email Address"
-                name="email"
-                autoComplete="email"
-                autoFocus
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                error={!!errors.email}
-                helperText={errors.email}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Mail size={20} color={errors.email ? '#ef4444' : '#94A3B8'} />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              <Button
-                type="button"
-                fullWidth
-                variant="contained"
-                sx={{ mt: 4, mb: 3, py: 1.5, fontSize: '1.1rem', backgroundColor: '#F59E0B', '&:hover': { backgroundColor: '#D97706' } }}
-                onClick={handleSubmit}
-                disabled={Object.keys(errors).length > 0 || isLoading}
+        <div className="bento-card">
+          {error && (
+            <div className="mb-6 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3.5 text-xs text-rose-300">
+              {error}
+            </div>
+          )}
+
+          {message && (
+            <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 text-xs text-emerald-300">
+              {message}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-xs font-mono uppercase text-slate-400 tracking-wider mb-2" htmlFor="email">
+                Operator Email Address
+              </label>
+              <div className="relative">
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="operator@company.com"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-slate-500 transition-colors focus:border-cyan-400 focus:bg-white/[0.05]"
+                />
+                <Mail className="absolute right-3.5 top-3.5 h-4 w-4 text-slate-500" />
+              </div>
+            </div>
+
+            <MagneticButton strength={0.2} className="w-full">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-cyan-400 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300 transition-colors disabled:opacity-50"
               >
-                {isLoading ? 'Sending...' : 'Send Reset Link'}
-              </Button>
-              {message && (
-                <Alert severity={message.includes('Error') ? 'error' : 'success'} sx={{ mt: 2, borderRadius: '8px' }}>
-                  {message}
-                </Alert>
-              )}
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <Link to="/login" style={{ color: '#94A3B8', textDecoration: 'none', fontWeight: 500 }}>
-                  Back to login
-                </Link>
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
-      </Container>
-    </Box>
+                {isLoading ? 'Dispatching...' : 'Dispatch Reset Key'}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </MagneticButton>
+          </form>
+
+          <div className="mt-6 text-center text-xs text-slate-400">
+            Remembered your credentials?{' '}
+            <Link to="/login" className="text-cyan-400 hover:text-cyan-300 font-semibold">
+              Return to Login
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

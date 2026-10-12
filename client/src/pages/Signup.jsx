@@ -1,207 +1,135 @@
-import { useState } from 'react';
-import axios from 'axios';
-import { useNavigate, Link } from 'react-router-dom';
-import {
-  TextField,
-  Button,
-  Alert,
-  Container,
-  Typography,
-  Box,
-  Paper,
-  InputAdornment,
-  IconButton
-} from '@mui/material';
-import { UserPlus, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { useState, useContext } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Zap, ArrowRight, Lock, Mail, User } from 'lucide-react';
+import { AuthContext } from '../contexts/AuthContext';
+import MagneticButton from '../components/motion/MagneticButton';
 
-function Signup() {
+export function Signup() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [message, setMessage] = useState('');
-  const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  const [localError, setLocalError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const { signup, loading } = useContext(AuthContext);
 
-  // Real-time validation
-  const validateForm = () => {
-    const newErrors = {};
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLocalError('');
+    setSuccessMessage('');
 
-    if (!name.trim()) {
-      newErrors.name = 'Name is required';
-    } else if (name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!emailRegex.test(email)) {
-      newErrors.email = 'Valid email is required';
-    }
-
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    } else if (!/[A-Z]/.test(password)) {
-      newErrors.password = 'Password must contain at least one uppercase letter';
-    } else if (!/[0-9]/.test(password)) {
-      newErrors.password = 'Password must contain at least one number';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSignup = async () => {
-    if (!validateForm()) return;
-    setIsLoading(true);
-
-    try {
-      const res = await axios.post('/api/auth/register', { name, email, password });
-      setMessage(res.data.message);
-      // optionally redirect to login after registration
-      setTimeout(() => navigate('/login'), 2000);
-    } catch (err) {
-      setMessage(err.response?.data?.error || 'Signup failed');
-    } finally {
-      setIsLoading(false);
+    const res = await signup(email, password, name);
+    if (res.success) {
+      setSuccessMessage(res.message || 'Account provisioned. Please check email for verification.');
+    } else {
+      setLocalError(res.error || 'Failed to initialize account');
     }
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
-      <Container component="main" maxWidth="sm">
-        <Paper 
-          className="glass-panel animate-fade-in" 
-          elevation={0} 
-          sx={{ padding: { xs: 4, md: 6 }, borderRadius: '24px', position: 'relative', overflow: 'hidden' }}
-        >
-          {/* Decorative background blur */}
-          <Box sx={{ position: 'absolute', top: -50, right: -50, width: 150, height: 150, background: 'rgba(16, 185, 129, 0.3)', filter: 'blur(40px)', borderRadius: '50%', zIndex: 0 }} />
-          
-          <Box sx={{ position: 'relative', zIndex: 1 }}>
-            <Box sx={{ mb: 4, textAlign: 'center' }}>
-              <Box sx={{ display: 'inline-flex', p: 2, borderRadius: '16px', background: 'rgba(16, 185, 129, 0.1)', mb: 2 }}>
-                <UserPlus size={32} color="#10B981" />
-              </Box>
-              <Typography component="h1" variant="h4" fontWeight="700" gutterBottom>
-                Create Account
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Join us today and get started.
-              </Typography>
-            </Box>
+    <div className="flex min-h-screen items-center justify-center bg-[#090B10] px-6 py-12 text-slate-100 selection:bg-cyan-500/30">
+      <div className="w-full max-w-md">
+        {/* Brand Header */}
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-3 group mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+              <Zap className="h-5 w-5" />
+            </div>
+            <span className="font-display text-xl font-bold text-white">SaaS Pro</span>
+          </Link>
+          <h1 className="font-display text-2xl font-bold text-white">Deploy New Workspace</h1>
+          <p className="text-sm text-slate-400 mt-1">Initialize isolated tenant infrastructure.</p>
+        </div>
 
-            <Box component="form" noValidate sx={{ mt: 1 }}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="name"
-                label="Full Name"
-                name="name"
-                autoComplete="name"
-                autoFocus
-                value={name}
-                onChange={e => setName(e.target.value)}
-                error={!!errors.name}
-                helperText={errors.name}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <User size={20} color={errors.name ? '#ef4444' : '#94A3B8'} />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="email"
-                label="Email Address"
-                name="email"
-                autoComplete="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                error={!!errors.email}
-                helperText={errors.email}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Mail size={20} color={errors.email ? '#ef4444' : '#94A3B8'} />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="password"
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                error={!!errors.password}
-                helperText={errors.password}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Lock size={20} color={errors.password ? '#ef4444' : '#94A3B8'} />
-                    </InputAdornment>
-                  ),
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
+        {/* Card Container */}
+        <div className="bento-card">
+          {localError && (
+            <div className="mb-6 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3.5 text-xs text-rose-300">
+              {localError}
+            </div>
+          )}
 
-              <Button
-                type="button"
-                fullWidth
-                variant="contained"
-                size="large"
-                color="secondary"
-                sx={{ mt: 4, mb: 3, py: 1.5, fontSize: '1.1rem', color: 'white' }}
-                onClick={handleSignup}
-                disabled={Object.keys(errors).length > 0 || isLoading}
+          {successMessage && (
+            <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 text-xs text-emerald-300">
+              {successMessage}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-xs font-mono uppercase text-slate-400 tracking-wider mb-2" htmlFor="name">
+                Operator Full Name
+              </label>
+              <div className="relative">
+                <input
+                  id="name"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Alex Mercer"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-slate-500 transition-colors focus:border-cyan-400 focus:bg-white/[0.05]"
+                />
+                <User className="absolute right-3.5 top-3.5 h-4 w-4 text-slate-500" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono uppercase text-slate-400 tracking-wider mb-2" htmlFor="email">
+                Work Email Address
+              </label>
+              <div className="relative">
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="alex@company.com"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-slate-500 transition-colors focus:border-cyan-400 focus:bg-white/[0.05]"
+                />
+                <Mail className="absolute right-3.5 top-3.5 h-4 w-4 text-slate-500" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono uppercase text-slate-400 tracking-wider mb-2" htmlFor="password">
+                Passkey (Min 8 chars, 1 uppercase, 1 number)
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-slate-500 transition-colors focus:border-cyan-400 focus:bg-white/[0.05]"
+                />
+                <Lock className="absolute right-3.5 top-3.5 h-4 w-4 text-slate-500" />
+              </div>
+            </div>
+
+            <MagneticButton strength={0.2} className="w-full">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-cyan-400 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300 transition-colors disabled:opacity-50"
               >
-                {isLoading ? 'Creating Account...' : 'Sign Up'}
-              </Button>
+                {loading ? 'Provisioning...' : 'Initialize Workspace'}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </MagneticButton>
+          </form>
 
-              {message && (
-                <Alert severity={message.includes('failed') ? 'error' : 'success'} sx={{ mt: 2, borderRadius: '8px' }}>
-                  {message}
-                </Alert>
-              )}
-
-              <Box sx={{ textAlign: 'center', mt: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Already have an account?{' '}
-                  <Link to="/login" style={{ color: '#10B981', textDecoration: 'none', fontWeight: 600 }}>
-                    Log In
-                  </Link>
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
-      </Container>
-    </Box>
+          <div className="mt-6 text-center text-xs text-slate-400">
+            Already have an active cluster?{' '}
+            <Link to="/login" className="text-cyan-400 hover:text-cyan-300 font-semibold">
+              Sign In
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

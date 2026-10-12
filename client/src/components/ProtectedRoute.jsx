@@ -1,24 +1,21 @@
+import { useContext } from 'react';
 import { Navigate } from 'react-router-dom';
-import { CircularProgress, Box } from '@mui/material';
-import { useAuth } from '../hooks/useAuth';
+import { AuthContext } from '../contexts/AuthContext';
 
-function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
+export default function ProtectedRoute({ children }) {
+  const { isAuthenticated, loading } = useContext(AuthContext);
 
   if (loading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="100vh"
-      >
-        <CircularProgress />
-      </Box>
+      <div className="flex min-h-screen items-center justify-center bg-[#090B10]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+      </div>
     );
   }
 
-  return isAuthenticated ? children : <Navigate to="/login" />;
-}
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
-export default ProtectedRoute;
+  return children;
+}
