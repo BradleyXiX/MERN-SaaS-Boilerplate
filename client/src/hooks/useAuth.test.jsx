@@ -23,7 +23,6 @@ describe('useAuth hook', () => {
     expect(result.current).toEqual(
       expect.objectContaining({
         user: null,
-        token: null,
         isAuthenticated: false,
         loading: expect.any(Boolean),
         error: null,

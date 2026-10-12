@@ -46,7 +46,7 @@ export const getValidationErrors = (error) => {
  * Check if error is a network error
  */
 export const isNetworkError = (error) => {
-  return !error?.response && error?.request;
+  return Boolean(!error?.response && error?.request);
 };
 
 /**
