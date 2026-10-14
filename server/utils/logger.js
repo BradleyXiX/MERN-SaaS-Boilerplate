@@ -12,22 +12,23 @@ const logger = winston.createLogger({
   ),
   defaultMeta: { service: 'mern-saas-api' },
   transports: [
-    // Write all logs with level `error` and below to `error.log`
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    // Write all logs with level `info` and below to `combined.log`
-    new winston.transports.File({ filename: 'logs/combined.log' })
-  ]
+    new winston.transports.Console({
+      format:
+        process.env.NODE_ENV === 'production'
+          ? winston.format.combine(winston.format.timestamp(), winston.format.json())
+          : winston.format.combine(winston.format.colorize(), winston.format.simple()),
+    }),
+  ],
 });
 
-// If we're not in production then log to the `console` with the format:
-// `${info.level}: ${info.message} JSON.stringify({ ...rest }) `
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple()
-    )
-  }));
+// File logging for persistent environments
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    logger.add(new winston.transports.File({ filename: 'logs/error.log', level: 'error' }));
+    logger.add(new winston.transports.File({ filename: 'logs/combined.log' }));
+  } catch (err) {
+    // Ephemeral or read-only container filesystem fallback
+  }
 }
 
 module.exports = logger;

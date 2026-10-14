@@ -105,12 +105,53 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 if (process.env.NODE_ENV !== 'test') {
+  // Bind to 0.0.0.0 for cloud platform container routing (Render, Railway, ECS)
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Server successfully running on port ${PORT}`);
+    console.log(`🚀 API Server running on port ${PORT}`);
+  });
+
+  const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/saas';
+
+  if (mongoUri.includes('localhost') || mongoUri.includes('127.0.0.1')) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.warn(
+        'MONGO_URI points to localhost in a production environment. Set MONGO_URI in your host dashboard to your MongoDB Atlas cluster URI.'
+      );
+      console.warn(
+        '⚠️  WARNING: MONGO_URI is set to localhost in production! Please set MONGO_URI in your Render environment variables to your MongoDB Atlas connection string.'
+      );
+    }
+  }
+
   mongoose
-    .connect(process.env.MONGO_URI || 'mongodb://localhost:27017/saas')
-    .then(() => {
-      app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
+    .connect(mongoUri, {
+      serverSelectionTimeoutMS: 5000,
     })
-    .catch((err) => logger.error('DB connection error', err));
+    .then(() => {
+      logger.info('MongoDB connected successfully');
+      console.log('✅ MongoDB connected successfully');
+    })
+    .catch((err) => {
+      logger.error(`MongoDB connection error: ${err.message}`, err);
+      console.error(`❌ MongoDB connection failed: ${err.message}`);
+      console.error(
+        '👉 Verify that MONGO_URI is set in Render Environment variables, credentials are valid, and Atlas Network Access allows 0.0.0.0/0.'
+      );
+    });
+
+  const shutdown = () => {
+    logger.info('Shutting down server gracefully...');
+    server.close(() => {
+      mongoose.connection.close(false).then(() => {
+        logger.info('Server and database connections closed');
+        process.exit(0);
+      });
+    });
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 module.exports = app;
