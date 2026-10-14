@@ -1,4 +1,6 @@
 const isProduction = process.env.NODE_ENV === 'production';
+const sameSitePolicy = (process.env.COOKIE_SAME_SITE || 'strict').toLowerCase();
+const isSecure = isProduction || sameSitePolicy === 'none';
 
 const AUTH_COOKIE_NAME = 'saas_auth_session';
 const REFRESH_COOKIE_NAME = 'saas_refresh_session';
@@ -8,16 +10,16 @@ const REFRESH_COOKIE_NAME = 'saas_refresh_session';
  */
 const getAuthCookieOptions = (maxAgeMs = 15 * 60 * 1000) => ({
   httpOnly: true,
-  secure: isProduction,
-  sameSite: 'strict',
+  secure: isSecure,
+  sameSite: sameSitePolicy,
   path: '/',
   maxAge: maxAgeMs,
 });
 
 const getRefreshCookieOptions = () => ({
   httpOnly: true,
-  secure: isProduction,
-  sameSite: 'strict',
+  secure: isSecure,
+  sameSite: sameSitePolicy,
   path: '/',
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 });

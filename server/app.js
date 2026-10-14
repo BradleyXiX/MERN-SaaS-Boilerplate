@@ -12,6 +12,9 @@ const logger = require('./utils/logger');
 
 const app = express();
 
+// Trust reverse proxy hops (required for secure cookies and rate limiting on Render, Railway, Vercel)
+app.set('trust proxy', 1);
+
 // 1. Strict Content Security Policy & Security Headers via Helmet
 app.use(
   helmet({
