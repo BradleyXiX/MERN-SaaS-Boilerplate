@@ -1,26 +1,41 @@
 # SaaS Pro — High-Performance Cloud Orchestration Platform
 
 [![Build Status](https://img.shields.io/badge/Build-Passing-emerald)](https://github.com/BradleyXiX/MERN-SaaS-Boilerplate)
-[![Architecture](https://img.shields.io/badge/Architecture-Diátaxis%20%7C%20RFC%207807-blue)](docs/adr/001-cookie-session-and-zod-contracts.md)
-[![Design](https://img.shields.io/badge/Design-Anti--Slop%20Obsidian%20Bento-cyan)](#design-system--aesthetic-philosophy)
-[![Security](https://img.shields.io/badge/Security-HttpOnly%20SameSite%3DStrict-purple)](#defensive-security-architecture)
+[![Architecture](https://img.shields.io/badge/Architecture-Diátaxis%20%7C%20RFC%207807-blue)](docs/explanation/architecture.md)
+[![Design](https://img.shields.io/badge/Design-Anti--Slop%20Obsidian%20Bento-cyan)](#platform-architecture--core-capabilities)
+[![Security](https://img.shields.io/badge/Security-HttpOnly%20SameSite%3DStrict-purple)](docs/explanation/security-model.md)
+[![Tests](https://img.shields.io/badge/Tests-23%20Passing-brightgreen)](TESTING.md)
 
-A production-grade, enterprise cloud orchestration boilerplate engineered with defense-in-depth security, runtime contract validation, React Three Fiber WebGL visuals, and Lenis-GSAP smooth scroll storytelling.
+A production-grade, enterprise cloud orchestration boilerplate engineered with defense-in-depth security, runtime Zod contracts, React 19 Three Fiber WebGL graphics, and Lenis-GSAP synchronized inertia storytelling.
 
 ---
 
-## Architecture Overview
+## Diátaxis Documentation Portal
+
+Documentation is structured according to the **Diátaxis Framework**, cleanly separating learning, task recipes, factual references, and system explanations:
+
+| Quadrant | Focus | Primary Guides |
+|---|---|---|
+| **Tutorials** | *Learning-oriented* | • [End-to-End Platform Quickstart](docs/tutorials/quickstart-guide.md)<br>• [Local Setup & First Login](docs/tutorials/quickstart-guide.md#step-5-complete-authentication-flow) |
+| **How-To Guides** | *Task-oriented* | • [Production Deployment & Containerization](docs/how-to/production-deployment.md)<br>• [Configuring Cryptographic Cookie Authentication](docs/how-to/secure-cookie-auth.md)<br>• [Automated Testing & Assertion Strategy](docs/how-to/testing-strategy.md) |
+| **Reference** | *Information-oriented* | • [REST API Reference Specification (RFC 7807)](API.md)<br>• [Environment Variables & Token Configuration](docs/reference/configuration.md)<br>• [Complete Endpoint Schema Contracts](docs/reference/api-reference.md) |
+| **Explanation** | *Understanding-oriented* | • [System Architecture & Defensive Pipeline](ARCHITECTURE.md)<br>• [Cryptographic Security & Token Rotation Model](REFRESH_TOKEN_GUIDE.md)<br>• [Motion Engine & WebGL Graphics Architecture](docs/explanation/motion-webgl-engine.md) |
+| **ADR Archive** | *Architectural Decisions* | • [ADR-001: HttpOnly Cookies and Zod Contracts](docs/adr/001-cookie-session-and-zod-contracts.md)<br>• [ADR-002: Unified Lenis-GSAP RAF Ticker](docs/adr/002-lenis-gsap-unified-raf.md)<br>• [ADR-003: Single Draw Call InstancedMesh Constellation](docs/adr/003-instanced-webgl-particle-constellation.md) |
+
+---
+
+## System Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Client Architecture (React 19 + Vite)"]
+    subgraph Client ["Client Presentation Tier (React 19 + Vite)"]
         UI["Obsidian Bento Design System"]
-        R3F["R3F WebGL Particle Field (1,200 Instanced Points)"]
+        R3F["Three.js / R3F WebGL Canvas (1,200 Instanced Points)"]
         GSAP["Lenis Smooth Scroll + Scoped GSAP Pinning"]
         Cursor["Hardware-Accelerated quickTo Magnetic Cursor"]
     end
 
-    subgraph Gateway ["Gateway & Security Perimeter (Express 5)"]
+    subgraph Gateway ["Security Perimeter (Express 5)"]
         Helmet["Helmet CSP + Security Headers"]
         RateLimit["Sliding-Window Brute Force Rate Limiter"]
         CORS["Whitelist CORS with Credentials"]
@@ -30,29 +45,31 @@ flowchart TD
 
     subgraph DataLayer ["Data & Storage Layer"]
         Sanitizer["NoSQL Operator Sanitizer (mongo-sanitize)"]
-        Mongo["MongoDB Atlas (B-Tree Indexed Collections)"]
+        Mongo["MongoDB 7+ (B-Tree Indexed Collections)"]
+        Mailer["Nodemailer SMTP Dispatcher"]
     end
 
-    Client --> Gateway
+    Client -->|HTTPS with Credentials| Gateway
     Gateway --> Zod
     Zod --> Sanitizer
-    Sanitizer --> DataLayer
+    Sanitizer --> Mongo
+    Gateway --> Mailer
 ```
 
 ---
 
-## Key Platform Capabilities
+## Platform Architecture & Core Capabilities
 
 ### 1. Zero-AI-Slop Visual System
-- **Palette**: Deep Obsidian foundations (`#090B10`, `#0F131C`, `#161B26`), hairline borders (`1px solid rgba(255, 255, 255, 0.07)`), and intentional spectral accents (electric cyan `#06B6D4` and amber `#F59E0B`).
+- **Palette**: Deep Obsidian foundation (`#090B10`, `#0F131C`, `#161B26`), hairline borders (`1px solid rgba(255, 255, 255, 0.07)`), and intentional spectral accents (electric cyan `#06B6D4` and amber `#F59E0B`).
 - **Typography**: Paired editorial display typeface (`Outfit`) with geometric sans (`Plus Jakarta Sans`) and telemetry monospace (`JetBrains Mono`).
 - **Layout Architecture**: 12-column asymmetric Bento grids replacing generic 3-card templates.
 
 ### 2. Cinematic Motion & WebGL Graphics
-- **Unified Scroll RAF**: Lenis smooth scroll ticker directly bound to `gsap.ticker` to prevent layout thrashing and ScrollTrigger tearing.
+- **Unified Scroll RAF**: Lenis smooth scroll ticker directly bound to `gsap.ticker` to prevent layout thrashing and ScrollTrigger pin tearing.
 - **Narrative Storytelling**: Multi-card sequential scroll scrubbing (`scrub: 1`, `pin: true`) with scoped React lifecycle teardown via `useGSAP()`.
 - **Three.js / React Three Fiber**: 1,200-node particle constellation with single-draw-call `InstancedMesh`, ACES Filmic tonemapping, clamped DPR (1–1.8), and lerped NDC mouse coordinate parallax.
-- **Magnetic Pointer Physics**: Sub-millisecond cursor tracking using `gsap.quickTo()` with proximity-based button snapping and automatic coarse pointer touch-screen deactivation.
+- **Magnetic Pointer Physics**: Sub-millisecond cursor tracking using `gsap.quickTo()` with proximity-based button snapping and automatic touch-screen deactivation.
 
 ### 3. Defensive Security Perimeter
 - **Zero LocalStorage JWTs**: Session and refresh tokens are stored strictly inside `HttpOnly`, `Secure`, `SameSite=Strict` cookies.
@@ -62,30 +79,26 @@ flowchart TD
 
 ---
 
-## Diátaxis Quickstart (How-To Guide)
+## Quickstart
 
-### Prerequisites
-- Node.js ≥ 20.x
-- MongoDB instance (local or MongoDB Atlas connection string)
-
-### 1. Environment Setup
-Create a `.env` file in `server/` modeled after `server/.env.example`:
+### 1. Configure Environment Variables
+Create a `.env` file in `server/` modeled after [`server/.env.example`](file:///c:/Users/Admin/OneDrive/Desktop/Source%20Code/MERN%20SaaS%20Boiler-Plate/server/.env.example):
 
 ```env
 PORT=5000
 NODE_ENV=development
-MONGO_URI=mongodb://localhost:27017/saas_pro
+MONGO_URI=mongodb://localhost:27017/saas
 JWT_SECRET=super_secret_cryptographic_jwt_key_at_least_32_characters_long
-JWT_REFRESH_SECRET=super_secret_refresh_key_at_least_32_characters_long
+REFRESH_TOKEN_SECRET=super_secret_refresh_key_at_least_32_characters_long
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```
 
-### 2. Dependency Installation
+### 2. Install Dependencies
 ```bash
 npm run install:all
 ```
 
-### 3. Launch Development Environment
+### 3. Boot Development Stack
 ```bash
 npm run dev
 ```
@@ -93,81 +106,50 @@ The client console boots at `http://localhost:5173` with the backend API listeni
 
 ---
 
-## API Reference & Endpoint Verification
+## API Contract Overview
 
-### Authenticate Session (`POST /api/auth/login`)
+All endpoints strictly adhere to **RFC 7807 Problem Details for HTTP APIs**. Complete request/response schemas, constraint matrices, and copy-pasteable `curl` commands are available in the [API Reference Specification](API.md).
 
-Dispatches an authenticated session handshake, returning user metadata and issuing encrypted `HttpOnly` session cookies.
-
-#### Request Schema
-```bash
-curl -X POST "http://localhost:5000/api/auth/login" \
-  -H "Content-Type: application/json" \
-  -c cookies.txt \
-  -d '{
-    "email": "operator@company.com",
-    "password": "SecurePassword123!"
-  }'
-```
-
-#### Success Response (`200 OK`)
-```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-    "user": {
-      "id": "6704b2a8f9c1d2e3b4a56789",
-      "name": "Alex Mercer",
-      "email": "operator@company.com",
-      "role": "admin"
-    }
-  }
-}
-```
-*Set-Cookie Headers:*
-- `saas_auth_session=...; Path=/; HttpOnly; SameSite=Strict`
-- `saas_refresh_session=...; Path=/; HttpOnly; SameSite=Strict`
-
-#### Validation Failure Response (`422 Unprocessable Entity` — RFC 7807)
-```json
-{
-  "type": "https://api.example.com/errors/validation-failed",
-  "title": "Unprocessable Entity",
-  "status": 422,
-  "detail": "One or more request parameters failed validation criteria.",
-  "instance": "/api/auth/login",
-  "invalidParams": [
-    {
-      "field": "email",
-      "message": "Invalid email address format",
-      "code": "invalid_string"
-    }
-  ],
-  "timestamp": "2026-10-12T19:00:00.000Z"
-}
-```
+| Method | Endpoint | Authentication | Rate Limit | Description |
+|---|---|---|---|---|
+| `POST` | `/api/auth/register` | Public | 5 req / 15m | Register user identity with Zod schema validation |
+| `POST` | `/api/auth/login` | Public | 5 req / 15m | Issue dual `HttpOnly` cookies (`saas_auth_session`, `saas_refresh_session`) |
+| `POST` | `/api/auth/refresh-token` | Cookie / Body | Standard | Rotate expired access tokens via hashed refresh token in MongoDB |
+| `GET` | `/api/auth/verify-email` | Public | Standard | Validate cryptographic email verification token |
+| `POST` | `/api/auth/forgot-password` | Public | 3 req / 1h | Dispatch 1-hour password reset token (Anti-enumeration safe) |
+| `POST` | `/api/auth/reset-password` | Public | 3 req / 1h | Reset password and invalidate all active session tokens |
+| `GET` | `/api/auth/me` | Cookie / Bearer | Standard | Retrieve sanitized user document (`protect` middleware) |
+| `POST` | `/api/auth/logout` | Cookie / Body | Standard | Purge session cookies and revoke refresh token in database |
+| `GET` | `/api/health` | Public | None | Return API gateway and MongoDB connection status |
 
 ---
 
 ## Test Verification Suite
 
-Run automated unit and integration tests across both workspaces:
+Assert codebase integrity using the automated test suites:
 
 ```bash
-# Execute Client Vitest Test Suite (15 passing tests)
-npx vitest run --dir client
+# Execute Client Vitest Suite (15 passing tests)
+npm test --prefix client -- --run
 
-# Execute Server Jest Test Suite (8 passing tests)
-npm test --prefix server
+# Execute Server Jest Suite (8 passing tests)
+npm test --prefix server -- --runInBand
 ```
+
+For detailed assertion patterns and CI configuration, see [TESTING.md](TESTING.md).
 
 ---
 
-## Architecture Decision Records
-- [ADR-001: Migration to Cryptographic HttpOnly Cookie Sessions and Zod Contracts](docs/adr/001-cookie-session-and-zod-contracts.md)
+## Project Structure & Contributing
+
+- [System Architecture](ARCHITECTURE.md)
+- [Development Guide](DEVELOPMENT.md)
+- [Deployment Recipes](DEPLOYMENT.md)
+- [Cryptographic Refresh Token Guide](REFRESH_TOKEN_GUIDE.md)
+- [Contributing Guidelines](CONTRIBUTING.md)
 
 ---
 
 ## License
-MIT © 2026. Built in adherence to `.agents/AGENTS.md` Platform Engineering Standards.
+
+MIT © 2026. Built in strict adherence to `.agents/AGENTS.md` Platform Engineering Standards.

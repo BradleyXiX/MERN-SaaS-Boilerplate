@@ -1,334 +1,155 @@
-# Refresh Token Implementation
+# SaaS Pro — Cryptographic Refresh Token & Cookie Session Guide
 
-## Overview
+Authoritative technical documentation on the dual-token cryptographic cookie rotation architecture used across SaaS Pro client and server systems.
 
-This application implements a secure refresh token strategy to improve security and user experience. Access tokens are short-lived (15 minutes) while refresh tokens are long-lived (7 days), allowing users to stay logged in without exposing long-lived credentials.
+---
 
-## Architecture
+## 1. Security Architecture & Threat Mitigation
 
-### Token Types
+### Elimination of LocalStorage Storage Risks
 
-1. **Access Token** (JWT)
-   - Duration: 15 minutes
-   - Used for API requests
-   - Included in `Authorization: Bearer <token>` header
-   - Short-lived for security
+Storing authentication tokens in browser `localStorage` leaves applications susceptible to complete session compromise via Cross-Site Scripting (XSS). In this platform:
+- All authentication state is managed through `HttpOnly`, `Secure`, `SameSite=Strict` cookies.
+- JavaScript running in the browser cannot read or exfiltrate either token (`document.cookie` returns empty).
+- `SameSite=Strict` guarantees cookies are never included in third-party cross-site requests, mitigating Cross-Site Request Forgery (CSRF).
 
-2. **Refresh Token** (JWT)
-   - Duration: 7 days
-   - Stored in browser localStorage
-   - Used only to get new access tokens
-   - Hashed and stored in database for security
+---
 
-## Server Implementation
+## 2. Token Lifecycle & Specifications
+
+| Token | Cookie Identifier | Expiration | Purpose | Storage Mechanism |
+|---|---|---|---|---|
+| **Access Token** | `saas_auth_session` | 15 Minutes | Grants access to protected endpoints | `HttpOnly` Cookie (`/`) |
+| **Refresh Token** | `saas_refresh_session` | 7 Days | Silent rotation for access tokens | `HttpOnly` Cookie & SHA-256 in MongoDB |
+
+---
+
+## 3. Server Implementation Architecture
+
+### Database Schema (`server/models/User.js`)
+
+Refresh tokens are stored as hashed records within the `refreshTokens` array:
+
+```javascript
+refreshTokens: [
+  {
+    token: String,           // Cryptographic SHA-256 hash of refresh token
+    expiresAt: Date,        // Expiration timestamp
+    createdAt: Date         // Issuance timestamp
+  }
+]
+```
 
 ### Token Service (`server/utils/tokenService.js`)
 
-Core utility functions for token management:
+Core cryptographic functions:
+- `generateTokenPair(userId)`: Generates both 15m access token and 7d refresh token.
+- `verifyAccessToken(token)`: Validates signature and decodes claims.
+- `verifyRefreshToken(token)`: Validates long-lived refresh signature.
+- `hashToken(token)`: Computes `sha256` digest of raw JWT before database queries.
+
+### Session Cookie Engine (`server/utils/cookieHelper.js`)
+
+Sets and clears secure cookies on the HTTP response stream:
 
 ```javascript
-generateAccessToken(userId)      // Generate 15m access token
-generateRefreshToken(userId)     // Generate 7d refresh token
-generateTokenPair(userId)        // Generate both tokens
-verifyAccessToken(token)         // Validate access token
-verifyRefreshToken(token)        // Validate refresh token
-hashToken(token)                 // Hash token for storage
-getTokenExpiry(token)            // Extract expiry from JWT
-```
-
-### Database Schema
-
-User model stores refresh tokens:
-
-```javascript
-refreshTokens: [
-  {
-    token: String,           // Hashed refresh token
-    expiresAt: Date,        // Token expiration
-    createdAt: Date         // When token was issued
+const setAuthCookies = (res, { accessToken, refreshToken }) => {
+  if (accessToken) {
+    res.cookie('saas_auth_session', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
   }
-]
-```
-
-### API Endpoints
-
-#### Login - `POST /api/auth/login`
-
-Returns both tokens:
-
-```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "eyJhbGc...",
-    "refreshToken": "eyJhbGc...",
-    "user": { ... }
+  if (refreshToken) {
+    res.cookie('saas_refresh_session', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
   }
-}
+};
 ```
 
-Client stores:
-- `token` → localStorage.token (access token)
-- `refreshToken` → localStorage.refreshToken (refresh token)
+---
 
-#### Refresh Token - `POST /api/auth/refresh-token`
+## 4. End-to-End Rotation Sequence
 
-Request:
-```json
-{
-  "refreshToken": "eyJhbGc..."
-}
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as React Client (Axios)
+    participant Gateway as Express Auth Gateway
+    participant DB as MongoDB Token Store
+
+    Client->>Gateway: POST /api/auth/login
+    Gateway->>Gateway: Validate password via bcrypt
+    Gateway->>DB: Push SHA-256 hash of refresh token
+    Gateway-->>Client: 200 OK + Set-Cookie: saas_auth_session + saas_refresh_session
+
+    Note over Client,Gateway: Normal Operation
+    Client->>Gateway: GET /api/auth/me (Cookie sent automatically)
+    Gateway-->>Client: 200 OK (User Profile)
+
+    Note over Client,Gateway: Silent Rotation on 401
+    Client->>Gateway: GET /api/protected
+    Gateway-->>Client: 401 Unauthorized (Access token expired)
+    Client->>Gateway: POST /api/auth/refresh-token (saas_refresh_session attached)
+    Gateway->>DB: Find user and verify SHA-256 hash
+    Gateway->>Gateway: Generate fresh 15m access token
+    Gateway-->>Client: 200 OK + Set-Cookie: saas_auth_session (renewed)
+    Client->>Gateway: Retry original request
+    Gateway-->>Client: 200 OK (Success)
 ```
 
-Response:
-```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "eyJhbGc..."
-  }
-}
-```
+---
 
-#### Logout - `POST /api/auth/logout`
+## 5. Client Interceptor Queue (`client/src/utils/api.js`)
 
-Clears stored refresh tokens:
-
-```json
-{
-  "refreshToken": "eyJhbGc...",
-  "logoutAll": false  // Optional: logout from all devices
-}
-```
-
-## Client Implementation
-
-### Flow Diagram
-
-```
-User Login
-    ↓
-POST /api/auth/login
-    ↓
-Save tokens to localStorage
-- token (access token)
-- refreshToken (refresh token)
-    ↓
-API Request
-    ↓
-Include Authorization: Bearer <token>
-    ↓
-Response 401 Unauthorized? (token expired)
-    ↓
-Auto-refresh with POST /api/auth/refresh-token
-    ↓
-Retry original request with new token
-```
-
-### API Interceptors (`client/src/utils/api.js`)
-
-**Request Interceptor:**
-- Automatically adds access token to headers
-- Checks `localStorage.token` for each request
-
-**Response Interceptor:**
-- Detects 401 responses (expired token)
-- Calls refresh endpoint with `refreshToken`
-- Updates `localStorage.token` with new access token
-- Retries original request automatically
-- Queues concurrent requests during refresh
-
-### AuthContext (`client/src/contexts/AuthContext.jsx`)
-
-Manages token state and provides auth methods:
+The Axios client instance automatically queues requests during token rotation to prevent parallel token refresh race conditions:
 
 ```javascript
-const { 
-  user, 
-  token, 
-  isAuthenticated, 
-  loading, 
-  error,
-  login,        // Returns {success, error}
-  logout,       // Clears tokens and state
-  refreshAccessToken, // Manual token refresh
-  ...
-} = useAuth();
-```
+let isRefreshing = false;
+let failedQueue = [];
 
-## Security Features
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/api/auth/login')) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(() => api(originalRequest));
+      }
+      originalRequest._retry = true;
+      isRefreshing = true;
 
-### Token Security
-
-1. **Refresh tokens are hashed** in database (not plaintext)
-2. **Access tokens are short-lived** (15 minutes)
-3. **Refresh tokens stored in localStorage** (XSS vulnerability considerations)
-4. **Automatic token refresh** before expiration in most cases
-
-### Best Practices Implemented
-
-✅ Refresh tokens validated against database before accepting
-✅ Expired refresh tokens cleaned up periodically
-✅ Multiple devices support (multiple refresh tokens per user)
-✅ Logout from single device or all devices option
-✅ Request queue prevents race conditions during refresh
-✅ Graceful fallback to login on permanent auth failure
-
-## Usage Examples
-
-### Basic Login
-
-```javascript
-import { useAuth } from './hooks/useAuth';
-
-function LoginForm() {
-  const { login, error, loading } = useAuth();
-
-  const handleLogin = async (email, password) => {
-    const result = await login(email, password);
-    if (result.success) {
-      // Redirect to dashboard
-    } else {
-      // Show error
+      try {
+        await api.post('/api/auth/refresh-token', {});
+        processQueue(null);
+        return api(originalRequest);
+      } catch (refreshErr) {
+        processQueue(refreshErr);
+        window.dispatchEvent(new Event('auth:session-expired'));
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
     }
-  };
-}
-```
-
-### Protected Component
-
-```javascript
-function Dashboard() {
-  const { user, logout, isAuthenticated } = useAuth();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    return Promise.reject(error);
   }
-
-  return (
-    <div>
-      <h1>Welcome {user.name}</h1>
-      <button onClick={logout}>Logout</button>
-    </div>
-  );
-}
+);
 ```
 
-### Automatic Token Refresh
+---
 
-No code needed - interceptors handle it automatically:
+## 6. Multi-Device Logout & Session Revocation
 
-```javascript
-// This request will auto-refresh token if expired
-const response = await api.get('/api/auth/me');
-```
-
-## Configuration
-
-### Server Environment Variables
-
-```bash
-# .env
-JWT_SECRET=<your-secret-key>
-REFRESH_TOKEN_SECRET=<your-refresh-secret>
-```
-
-Generate strong secrets:
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-### Token Expiry Times
-
-Edit in `server/utils/tokenService.js`:
-
-```javascript
-const ACCESS_TOKEN_EXPIRY = '15m';   // Access token duration
-const REFRESH_TOKEN_EXPIRY = '7d';   // Refresh token duration
-```
-
-## Troubleshooting
-
-### User Gets Logged Out After 15 Minutes
-
-This is expected behavior. The refresh token flow should keep them logged in for 7 days:
-- Check that `localStorage.refreshToken` is being saved
-- Verify refresh endpoint is working: `POST /api/auth/refresh-token`
-- Check server logs for refresh token validation errors
-
-### Refresh Token Not Saving
-
-- Check browser dev tools: Application → Local Storage → `refreshToken`
-- Verify login response includes `refreshToken` in data.data
-- Check localStorage size limits (usually 5-10MB)
-
-### Continuous 401 Errors
-
-- Refresh token may be expired or invalid
-- User needs to log in again
-- Check that refresh token is stored in database
-- Verify `REFRESH_TOKEN_SECRET` matches between environment files
-
-### Request Queue Stuck
-
-- Rare issue with multiple simultaneous requests
-- Check server response status codes
-- Verify token refresh endpoint is responding
-
-## Advanced Features
-
-### Logout from All Devices
-
-```javascript
-// Server stores multiple refresh tokens per user
-// Client can request logout from all devices:
-POST /api/auth/logout
-{
-  "logoutAll": true
-}
-```
-
-### Device Management
-
-Future enhancement: Track refresh token metadata (device, browser, IP):
-
-```javascript
-refreshTokens: [
-  {
-    token: String,
-    expiresAt: Date,
-    device: "Chrome on Windows",
-    ipAddress: "192.168.1.1",
-    createdAt: Date
-  }
-]
-```
-
-### Token Rotation
-
-Optional: Implement automatic refresh token rotation (issue new refresh token on each refresh).
-
-## Performance Considerations
-
-- ✅ Request queue prevents multiple simultaneous refresh calls
-- ✅ Token refresh happens before requests fail (in most cases)
-- ✅ localStorage has no performance penalty
-- ✅ Token validation is fast (JWT verification)
-
-## Testing
-
-See [TESTING.md](TESTING.md) for token refresh tests:
-
-```bash
-# Server tests
-npm --prefix server test
-
-# Client tests  
-npm --prefix client test
-```
-
-## References
-
-- [JWT Best Practices](https://tools.ietf.org/html/rfc8949)
-- [OWASP Token Storage](https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html#token-storage)
-- [Refresh Token Rotation Pattern](https://auth0.com/blog/refresh-tokens-what-are-they-and-when-to-use-them/)
+To revoke tokens:
+- **Single-Device Logout (`POST /api/auth/logout`)**: Removes the current device's refresh token hash from MongoDB and clears cookies.
+- **Global Logout (`POST /api/auth/logout` with `{"logoutAll": true}`)**: Sets `user.refreshTokens = []`, revoking all active sessions across all devices.

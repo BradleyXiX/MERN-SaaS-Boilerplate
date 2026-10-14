@@ -1,190 +1,157 @@
-# Testing Guide
+# SaaS Pro — Automated Testing & Verification Guide
 
-This project includes comprehensive testing setup for both the backend (server) and frontend (client).
+Authoritative testing guide for running, authoring, and asserting unit, component, and integration tests across the SaaS Pro client and server workspaces.
 
-## Server Testing (Node.js/Jest)
+---
 
-### Running Tests
+## 1. Running the Automated Test Suites
+
+### Client Tests (Vitest 1.6 + React Testing Library)
+
+Execute the client test suite from the repository root:
 
 ```bash
-cd server
-
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage report
-npm run test:coverage
+npm test --prefix client -- --run
 ```
 
-### Test Structure
+**Expected Output:**
+```
+✓ src/utils/errorHandler.test.js  (9 tests)
+✓ src/hooks/useAuth.test.jsx  (4 tests)
+✓ src/components/ProtectedRoute.test.jsx  (2 tests)
 
-Server tests are located in `__tests__` directories or alongside source files with `.test.js` suffix.
+Test Files  3 passed (3)
+Tests       15 passed (15)
+```
 
-**Example test locations:**
-- `middleware/__tests__/validation.test.js`
-- `controllers/authController.test.js`
-- `models/User.test.js`
+To run with the interactive browser UI:
+```bash
+npm run test:ui --prefix client
+```
 
-### Writing Server Tests
+### Server Tests (Jest 29 + Supertest)
+
+Execute the server test suite with `--runInBand`:
+
+```bash
+npm test --prefix server -- --runInBand
+```
+
+**Expected Output:**
+```
+PASS middleware/zodValidator.test.js
+PASS middleware/errorHandler.test.js
+
+Test Suites: 2 passed, 2 total
+Tests:       8 passed, 8 total
+```
+
+---
+
+## 2. Writing Server Tests (Jest & Supertest)
+
+### Pattern: Asserting RFC 7807 Problem Details on Validation Failure
 
 ```javascript
-describe('Auth Controller', () => {
-  it('should login user successfully', async () => {
-    // Test implementation
+const request = require('supertest');
+const app = require('../app');
+
+describe('POST /api/auth/register Validation Boundaries', () => {
+  it('returns 422 Unprocessable Entity when password lacks digits', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Alex Mercer',
+        email: 'alex@company.com',
+        password: 'NoNumbersInPasswordHere!',
+      });
+
+    expect(res.status).toBe(422);
+    expect(res.header['content-type']).toContain('application/problem+json');
+    expect(res.body).toMatchObject({
+      type: 'https://api.example.com/errors/validation-failed',
+      title: 'Unprocessable Entity',
+      status: 422,
+      invalidParams: expect.arrayContaining([
+        expect.objectContaining({
+          field: 'password',
+          message: 'Password must contain at least one number',
+        }),
+      ]),
+    });
   });
 });
 ```
 
-## Client Testing (React/Vitest)
+---
 
-### Running Tests
+## 3. Writing Client Tests (Vitest & React Testing Library)
 
-```bash
-cd client
+### Pattern: Testing Authentication Context and Hooks
 
-# Run all tests
-npm test
+```jsx
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { AuthProvider, AuthContext } from '../contexts/AuthContext';
+import { useContext } from 'react';
+import api from '../utils/api';
 
-# Run tests in watch mode (auto-rerun on changes)
-npm test -- --watch
+vi.mock('../utils/api');
 
-# Run tests with UI dashboard
-npm run test:ui
+describe('AuthContext Session Synchronization', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-# Run tests with coverage report
-npm run test:coverage
-```
+  it('populates user session when /api/auth/me returns 200', async () => {
+    api.get.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: { id: 'usr_123', email: 'operator@company.com', role: 'admin' },
+      },
+    });
 
-### Test Structure
+    const wrapper = ({ children }) => <AuthProvider>{children}</AuthProvider>;
+    const { result } = renderHook(() => useContext(AuthContext), { wrapper });
 
-Client tests are located alongside source files with `.test.js` or `.test.jsx` suffix.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
 
-**Example test locations:**
-- `src/hooks/useAuth.test.js`
-- `src/components/ProtectedRoute.test.js`
-- `src/utils/errorHandler.test.js`
-- `src/pages/Login.test.jsx`
-
-### Writing Client Tests
-
-```javascript
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-
-describe('MyComponent', () => {
-  it('should render correctly', () => {
-    render(<MyComponent />);
-    expect(screen.getByText('Expected text')).toBeInTheDocument();
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.user.email).toBe('operator@company.com');
   });
 });
 ```
 
-## Testing Best Practices
+---
 
-### Server (Jest)
+## 4. Continuous Integration (GitHub Actions)
 
-1. **Unit Tests**: Test individual functions and middleware in isolation
-   - Mock external dependencies (database, email, etc.)
-   - Use `jest.mock()` for dependencies
+Add this workflow in `.github/workflows/ci.yml`:
 
-2. **Integration Tests**: Test API endpoints with `supertest`
-   ```javascript
-   const request = require('supertest');
-   const app = require('../app');
-   
-   describe('POST /api/auth/login', () => {
-     it('should login user', async () => {
-       const response = await request(app)
-         .post('/api/auth/login')
-         .send({ email: 'test@example.com', password: 'password' });
-       expect(response.status).toBe(200);
-     });
-   });
-   ```
+```yaml
+name: CI Test Verification Suite
 
-3. **Coverage**: Aim for at least 80% code coverage
-   - Run: `npm run test:coverage`
-   - Report available in `coverage/` directory
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
-### Client (Vitest)
-
-1. **Unit Tests**: Test hooks, utilities, and components
-   - Mock API calls with `vi.mock()`
-   - Test user interactions with `userEvent`
-
-2. **Component Tests**: Test React components with React Testing Library
-   ```javascript
-   import { render, screen } from '@testing-library/react';
-   import userEvent from '@testing-library/user-event';
-   
-   it('should submit form', async () => {
-     render(<LoginForm />);
-     const user = userEvent.setup();
-     await user.type(screen.getByLabelText('Email'), 'test@example.com');
-     await user.click(screen.getByRole('button', { name: /login/i }));
-   });
-   ```
-
-3. **Hook Tests**: Use `renderHook` for custom hooks
-   ```javascript
-   import { renderHook, act } from '@testing-library/react';
-   
-   it('should update state', () => {
-     const { result } = renderHook(() => useAuth());
-     act(() => {
-       result.current.logout();
-     });
-     expect(result.current.isAuthenticated).toBe(false);
-   });
-   ```
-
-## CI/CD Integration
-
-Tests are configured to run in CI/CD pipelines. Ensure:
-
-1. All tests pass locally before pushing
-2. Coverage requirements are met
-3. No console errors or warnings
-
-## Troubleshooting
-
-### Server Tests Hanging
-
-- Use `jest --detectOpenHandles` to find unclosed resources
-- Close database connections in `afterAll()` hooks
-- Add timeouts: `jest.setTimeout(10000);`
-
-### Client Tests Timeout
-
-- Increase timeout: `it('...', async () => {...}, 10000)`
-- Check for unresolved promises in async operations
-- Mock external API calls properly
-
-### Mock Issues
-
-**Server:**
-```javascript
-jest.mock('../utils/mailer', () => ({
-  sendEmail: jest.fn().mockResolvedValue(true),
-}));
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm run install:all
+      - name: Run Client Vitest Suite
+        run: npm test --prefix client -- --run
+      - name: Run Server Jest Suite
+        run: npm test --prefix server -- --runInBand
 ```
-
-**Client:**
-```javascript
-vi.mock('../utils/api', () => ({
-  default: {
-    post: vi.fn(),
-    get: vi.fn(),
-  },
-}));
-```
-
-## Next Steps
-
-1. Add more test cases for authentication flows
-2. Set up code coverage thresholds
-3. Integrate with GitHub Actions for CI/CD
-4. Add E2E tests with Playwright or Cypress
