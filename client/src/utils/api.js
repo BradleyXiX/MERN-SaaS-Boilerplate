@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create configured axios instance with automatic cookie credential transmission
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
+  baseURL: (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, ''),
   timeout: 10000,
   withCredentials: true, // Crucial for HttpOnly cookie session transmission
   headers: {
